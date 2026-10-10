@@ -4,12 +4,15 @@ from typing import Any
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.worksheet import Worksheet
 
 from .exceptions import WorkbookError
 
 logger = logging.getLogger(__name__)
 
-def create_workbook(filepath: str, sheet_name: str = "Sheet1") -> dict[str, Any]:
+DEFAULT_SHEET_NAME = "Sheet1"
+
+def create_workbook(filepath: str, sheet_name: str = DEFAULT_SHEET_NAME) -> dict[str, Any]:
     """Create a new Excel workbook with optional custom sheet name"""
     try:
         wb = Workbook()
@@ -39,6 +42,36 @@ def get_or_create_workbook(filepath: str) -> Workbook:
     except FileNotFoundError:
         return create_workbook(filepath)["workbook"]
 
+def _is_untouched_default_sheet(wb: Workbook) -> bool:
+    """The workbook's only sheet is the default "Sheet1" with nothing put on it:
+    no value, merged range, chart, image, table, data validation or conditional format."""
+    if wb.sheetnames != [DEFAULT_SHEET_NAME]:
+        return False
+    sheet = wb[DEFAULT_SHEET_NAME]
+    return (
+        isinstance(sheet, Worksheet)
+        and all(value is None for row in sheet.iter_rows(values_only=True) for value in row)
+        and not sheet.merged_cells
+        and not sheet._charts
+        and not sheet._images
+        and not sheet.tables
+        and not sheet.data_validations.dataValidation
+        and not sheet.conditional_formatting
+    )
+
+def add_sheet(wb: Workbook, sheet_name: str) -> bool:
+    """Add a worksheet named ``sheet_name``; True when it took over the default sheet.
+
+    A new workbook starts with an empty default "Sheet1". While that is still its
+    only sheet and untouched, it is renamed to ``sheet_name`` instead of staying
+    in front of the new sheet as an empty first tab.
+    """
+    if _is_untouched_default_sheet(wb):
+        wb[DEFAULT_SHEET_NAME].title = sheet_name
+        return True
+    wb.create_sheet(sheet_name)
+    return False
+
 def create_sheet(filepath: str, sheet_name: str) -> dict:
     """Create a new worksheet in the workbook if it doesn't exist."""
     try:
@@ -48,11 +81,14 @@ def create_sheet(filepath: str, sheet_name: str) -> dict:
         if sheet_name in wb.sheetnames:
             raise WorkbookError(f"Sheet {sheet_name} already exists")
 
-        # Create new sheet
-        wb.create_sheet(sheet_name)
+        # Create new sheet, or take over the untouched default one
+        replaced_default = add_sheet(wb, sheet_name)
         wb.save(filepath)
         wb.close()
-        return {"message": f"Sheet {sheet_name} created successfully"}
+        message = f"Sheet {sheet_name} created successfully"
+        if replaced_default:
+            message += f" (it replaces the empty default sheet {DEFAULT_SHEET_NAME})"
+        return {"message": message}
     except WorkbookError as e:
         logger.error(str(e))
         raise

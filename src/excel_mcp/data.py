@@ -9,6 +9,7 @@ from openpyxl.utils import get_column_letter
 from .exceptions import DataError
 from .cell_utils import parse_cell_range
 from .cell_validation import get_data_validation_for_cell
+from .workbook import add_sheet
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +113,7 @@ def write_data(
                 raise DataError("No active sheet found in workbook")
             sheet_name = active_sheet.title
         elif sheet_name not in wb.sheetnames:
-            wb.create_sheet(sheet_name)
+            add_sheet(wb, sheet_name)
 
         ws = wb[sheet_name]
 
