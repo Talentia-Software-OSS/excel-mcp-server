@@ -9,10 +9,11 @@ This document provides detailed information about all available tools in the Exc
 Creates a new Excel workbook.
 
 ```python
-create_workbook(filepath: str) -> str
+create_workbook(filepath: str, sheet_name: str = "Sheet1") -> str
 ```
 
 - `filepath`: Path where to create workbook
+- `sheet_name`: Name of the first worksheet (default: "Sheet1")
 - Returns: Success message with created file path
 
 ### create_worksheet
@@ -26,6 +27,7 @@ create_worksheet(filepath: str, sheet_name: str) -> str
 - `filepath`: Path to Excel file
 - `sheet_name`: Name for the new worksheet
 - Returns: Success message
+- While the workbook's only sheet is the untouched default "Sheet1" (no values, merged cells, charts, images, tables, data validation or conditional formatting), that sheet is renamed to `sheet_name` instead of a second sheet being added, so the workbook does not keep an empty first sheet. The success message then says that it replaces the default sheet.
 
 ### get_workbook_metadata
 
@@ -55,7 +57,7 @@ write_data_to_excel(
 ```
 
 - `filepath`: Path to Excel file
-- `sheet_name`: Target worksheet name
+- `sheet_name`: Target worksheet name; a sheet that does not exist yet is created, taking over the untouched default "Sheet1" as `create_worksheet` does
 - `data`: List of dictionaries containing data to write
 - `start_cell`: Starting cell (default: "A1")
 - Returns: Success message

@@ -23,7 +23,7 @@ from excel_mcp.validation import (
     validate_range_in_sheet_operation as validate_range_impl
 )
 from excel_mcp.chart import create_chart_in_sheet as create_chart_impl
-from excel_mcp.workbook import get_workbook_info
+from excel_mcp.workbook import DEFAULT_SHEET_NAME, get_workbook_info
 from excel_mcp.data import write_data
 from excel_mcp.pivot import create_pivot_table as create_pivot_table_impl
 from excel_mcp.tables import create_excel_table as create_table_impl
@@ -313,12 +313,18 @@ def write_data_to_excel(
         destructiveHint=True,
     ),
 )
-def create_workbook(filepath: str) -> str:
-    """Create new Excel workbook."""
+def create_workbook(filepath: str, sheet_name: str = DEFAULT_SHEET_NAME) -> str:
+    """
+    Create new Excel workbook.
+
+    PARAMETERS:
+    filepath: Path where to create the workbook
+    sheet_name: Name of the first worksheet, default is "Sheet1"
+    """
     try:
         full_path = get_excel_path(filepath)
         from excel_mcp.workbook import create_workbook as create_workbook_impl
-        create_workbook_impl(full_path)
+        create_workbook_impl(full_path, sheet_name)
         return f"Created workbook at {full_path}"
     except WorkbookError as e:
         return f"Error: {str(e)}"

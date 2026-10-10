@@ -15,6 +15,7 @@ from openpyxl.styles import PatternFill  # noqa: E402
 from openpyxl.worksheet.datavalidation import DataValidation  # noqa: E402
 from openpyxl.worksheet.table import Table  # noqa: E402
 
+import excel_mcp.server as server  # noqa: E402
 from excel_mcp.data import write_data  # noqa: E402
 from excel_mcp.workbook import add_sheet, create_sheet, create_workbook  # noqa: E402
 
@@ -113,6 +114,26 @@ class TestDefaultSheet(unittest.TestCase):
         create_sheet(self.path, "Revenue")
 
         self.assertEqual(self._sheetnames(), ["Data", "Revenue"])
+
+
+class TestCreateWorkbookTool(unittest.TestCase):
+    def setUp(self):
+        server.EXCEL_FILES_PATH = None
+        self._tmp = tempfile.TemporaryDirectory()
+        self.path = os.path.join(self._tmp.name, "book.xlsx")
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_names_the_first_sheet(self):
+        server.create_workbook(self.path, sheet_name="Revenue")
+
+        self.assertEqual(load_workbook(self.path).sheetnames, ["Revenue"])
+
+    def test_the_first_sheet_defaults_to_sheet1(self):
+        server.create_workbook(self.path)
+
+        self.assertEqual(load_workbook(self.path).sheetnames, ["Sheet1"])
 
 
 if __name__ == "__main__":
