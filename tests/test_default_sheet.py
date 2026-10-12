@@ -53,8 +53,12 @@ class TestDefaultSheet(unittest.TestCase):
         self.assertIn("replaces the empty default sheet Sheet1", result["message"])
 
     def test_write_data_renames_the_untouched_default_sheet(self):
-        write_data(self.path, "Revenue", [["Region", "Revenue"], ["North", 120]])
+        result = write_data(self.path, "Revenue", [["Region", "Revenue"], ["North", 120]])
 
+        self.assertEqual(
+            result["message"],
+            "Data written to Revenue (it replaces the empty default sheet Sheet1)",
+        )
         wb = load_workbook(self.path)
         self.assertEqual(wb.sheetnames, ["Revenue"])
         self.assertEqual(wb["Revenue"]["B2"].value, 120)
@@ -120,9 +124,10 @@ class TestDefaultSheet(unittest.TestCase):
         wb.close()
 
         create_sheet(self.path, "Revenue")
-        write_data(self.path, "Costs", [["Region", "Cost"]])
+        result = write_data(self.path, "Costs", [["Region", "Cost"]])
 
         self.assertEqual(self._sheetnames(), ["Sheet1", "Notes", "Revenue", "Costs"])
+        self.assertEqual(result["message"], "Data written to Costs")
 
     def test_an_untouched_first_sheet_with_its_own_name_is_kept(self):
         create_workbook(self.path, sheet_name="Data")

@@ -57,7 +57,7 @@ write_data_to_excel(
 ```
 
 - `filepath`: Path to Excel file
-- `sheet_name`: Target worksheet name; a sheet that does not exist yet is created, taking over the untouched default "Sheet1" as `create_worksheet` does
+- `sheet_name`: Target worksheet name; a sheet that does not exist yet is created, taking over the untouched default "Sheet1" as `create_worksheet` does (the success message then says that it replaces the default sheet)
 - `data`: List of dictionaries containing data to write
 - `start_cell`: Starting cell (default: "A1")
 - Returns: Success message

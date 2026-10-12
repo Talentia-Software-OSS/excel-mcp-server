@@ -9,7 +9,7 @@ from openpyxl.utils import get_column_letter
 from .exceptions import DataError
 from .cell_utils import parse_cell_range
 from .cell_validation import get_data_validation_for_cell
-from .workbook import add_sheet
+from .workbook import REPLACED_DEFAULT_SHEET_NOTE, add_sheet
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +105,7 @@ def write_data(
             raise DataError("No data provided to write")
             
         wb = load_workbook(filepath)
+        replaced_default = False
 
         # If no sheet specified, use active sheet
         if not sheet_name:
@@ -113,7 +114,7 @@ def write_data(
                 raise DataError("No active sheet found in workbook")
             sheet_name = active_sheet.title
         elif sheet_name not in wb.sheetnames:
-            add_sheet(wb, sheet_name)
+            replaced_default = add_sheet(wb, sheet_name)
 
         ws = wb[sheet_name]
 
@@ -131,7 +132,10 @@ def write_data(
         wb.save(filepath)
         wb.close()
 
-        return {"message": f"Data written to {sheet_name}", "active_sheet": sheet_name}
+        message = f"Data written to {sheet_name}"
+        if replaced_default:
+            message += REPLACED_DEFAULT_SHEET_NOTE
+        return {"message": message, "active_sheet": sheet_name}
     except DataError as e:
         logger.error(str(e))
         raise

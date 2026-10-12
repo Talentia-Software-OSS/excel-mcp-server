@@ -289,6 +289,9 @@ def write_data_to_excel(
     """
     Write data to Excel worksheet.
     Excel formula will write to cell without any verification.
+    A sheet that does not exist yet is created. If the workbook's only sheet is the
+    untouched default "Sheet1", that sheet is renamed to sheet_name instead, so
+    "Sheet1" no longer exists afterwards; the result then says so.
 
     PARAMETERS:  
     filepath: Path to Excel file
@@ -339,7 +342,13 @@ def create_workbook(filepath: str, sheet_name: str = DEFAULT_SHEET_NAME) -> str:
     ),
 )
 def create_worksheet(filepath: str, sheet_name: str) -> str:
-    """Create new worksheet in workbook."""
+    """
+    Create new worksheet in workbook.
+
+    If the workbook's only sheet is the untouched default "Sheet1" (nothing written,
+    formatted or set up on it), that sheet is renamed to sheet_name instead of a second
+    sheet being added, so "Sheet1" no longer exists afterwards; the result then says so.
+    """
     try:
         full_path = get_excel_path(filepath)
         from excel_mcp.workbook import create_sheet as create_worksheet_impl

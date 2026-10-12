@@ -11,6 +11,9 @@ from .exceptions import WorkbookError
 logger = logging.getLogger(__name__)
 
 DEFAULT_SHEET_NAME = "Sheet1"
+# Appended to a tool's success message when add_sheet took over the default sheet,
+# so the model does not look for "Sheet1" afterwards.
+REPLACED_DEFAULT_SHEET_NOTE = f" (it replaces the empty default sheet {DEFAULT_SHEET_NAME})"
 
 def create_workbook(filepath: str, sheet_name: str = DEFAULT_SHEET_NAME) -> dict[str, Any]:
     """Create a new Excel workbook with optional custom sheet name"""
@@ -105,7 +108,7 @@ def create_sheet(filepath: str, sheet_name: str) -> dict:
         wb.close()
         message = f"Sheet {sheet_name} created successfully"
         if replaced_default:
-            message += f" (it replaces the empty default sheet {DEFAULT_SHEET_NAME})"
+            message += REPLACED_DEFAULT_SHEET_NOTE
         return {"message": message}
     except WorkbookError as e:
         logger.error(str(e))
