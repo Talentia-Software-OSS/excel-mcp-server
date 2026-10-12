@@ -19,7 +19,13 @@ from openpyxl.worksheet.table import Table  # noqa: E402
 
 import excel_mcp.server as server  # noqa: E402
 from excel_mcp.data import write_data  # noqa: E402
-from excel_mcp.workbook import add_sheet, create_sheet, create_workbook  # noqa: E402
+from excel_mcp.exceptions import DataError, WorkbookError  # noqa: E402
+from excel_mcp.workbook import (  # noqa: E402
+    add_sheet,
+    create_sheet,
+    create_workbook,
+    validate_sheet_name,
+)
 
 
 class TestDefaultSheet(unittest.TestCase):
@@ -136,6 +142,31 @@ class TestDefaultSheet(unittest.TestCase):
 
         self.assertEqual(self._sheetnames(), ["Data", "Revenue"])
 
+    def test_a_sheet_name_excel_refuses_leaves_the_default_sheet_alone(self):
+        for name in ["R" * 32, "'Revenue", "Revenue'", "Q1/Q2"]:
+            with self.subTest(name):
+                with self.assertRaises(WorkbookError):
+                    create_sheet(self.path, name)
+                with self.assertRaises(DataError):
+                    write_data(self.path, name, [["Region", "Revenue"]])
+
+                self.assertEqual(self._sheetnames(), ["Sheet1"])
+
+
+class TestValidateSheetName(unittest.TestCase):
+    def test_rejects_names_excel_refuses(self):
+        names = ["", "R" * 32, "'Revenue", "Revenue'"]
+        names += [f"Q1{character}Q2" for character in "[]:*?/\\"]
+        for name in names:
+            with self.subTest(name):
+                with self.assertRaises(WorkbookError):
+                    validate_sheet_name(name)
+
+    def test_accepts_names_excel_accepts(self):
+        for name in ["R", "R" * 31, "Bob's notes", "Q4 (final) & notes"]:
+            with self.subTest(name):
+                validate_sheet_name(name)
+
 
 class TestCreateWorkbookTool(unittest.TestCase):
     def setUp(self):
@@ -155,6 +186,14 @@ class TestCreateWorkbookTool(unittest.TestCase):
         server.create_workbook(self.path)
 
         self.assertEqual(load_workbook(self.path).sheetnames, ["Sheet1"])
+
+    def test_a_sheet_name_excel_refuses_is_an_error_and_writes_no_file(self):
+        for name in ["R" * 32, "'Revenue", ""]:
+            with self.subTest(name):
+                result = server.create_workbook(self.path, sheet_name=name)
+
+                self.assertTrue(result.startswith("Error: "), result)
+                self.assertFalse(os.path.exists(self.path))
 
 
 if __name__ == "__main__":

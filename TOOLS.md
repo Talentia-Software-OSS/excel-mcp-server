@@ -13,7 +13,7 @@ create_workbook(filepath: str, sheet_name: str = "Sheet1") -> str
 ```
 
 - `filepath`: Path where to create workbook
-- `sheet_name`: Name of the first worksheet (default: "Sheet1")
+- `sheet_name`: Name of the first worksheet (default: "Sheet1"): 1 to 31 characters, none of `[ ] : * ? / \`, and no apostrophe at the start or end
 - Returns: Success message with created file path
 
 ### create_worksheet
@@ -25,7 +25,7 @@ create_worksheet(filepath: str, sheet_name: str) -> str
 ```
 
 - `filepath`: Path to Excel file
-- `sheet_name`: Name for the new worksheet
+- `sheet_name`: Name for the new worksheet, following the same rules as in `create_workbook`
 - Returns: Success message
 - While the workbook's only sheet is the untouched default "Sheet1" (no cell with a value, format, comment or link; no merged cells, charts, images, tables, data validation, conditional formatting, print area or titles, frozen panes, filter, protection or tab colour; no defined name scoped to it or referring to it), that sheet is renamed to `sheet_name` instead of a second sheet being added, so the workbook does not keep an empty first sheet. The success message then says that it replaces the default sheet.
 

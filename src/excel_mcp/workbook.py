@@ -15,9 +15,35 @@ DEFAULT_SHEET_NAME = "Sheet1"
 # so the model does not look for "Sheet1" afterwards.
 REPLACED_DEFAULT_SHEET_NOTE = f" (it replaces the empty default sheet {DEFAULT_SHEET_NAME})"
 
+MAX_SHEET_NAME_LENGTH = 31
+INVALID_SHEET_NAME_CHARACTERS = "[]:*?/\\"
+
+def validate_sheet_name(sheet_name: str) -> None:
+    """Raise WorkbookError unless Excel accepts ``sheet_name`` as a worksheet name.
+
+    openpyxl only warns about a name over 31 characters and accepts a leading or
+    trailing apostrophe, which leaves a file Excel may refuse or repair.
+    """
+    if not sheet_name:
+        raise WorkbookError("Sheet name must not be empty")
+    if len(sheet_name) > MAX_SHEET_NAME_LENGTH:
+        raise WorkbookError(
+            f'Sheet name "{sheet_name}" is longer than {MAX_SHEET_NAME_LENGTH} characters'
+        )
+    if any(character in INVALID_SHEET_NAME_CHARACTERS for character in sheet_name):
+        raise WorkbookError(
+            f'Sheet name "{sheet_name}" must not contain any of '
+            + " ".join(INVALID_SHEET_NAME_CHARACTERS)
+        )
+    if sheet_name.startswith("'") or sheet_name.endswith("'"):
+        raise WorkbookError(
+            f'Sheet name "{sheet_name}" must not start or end with an apostrophe'
+        )
+
 def create_workbook(filepath: str, sheet_name: str = DEFAULT_SHEET_NAME) -> dict[str, Any]:
     """Create a new Excel workbook with optional custom sheet name"""
     try:
+        validate_sheet_name(sheet_name)
         wb = Workbook()
         # Rename default sheet
         if "Sheet" in wb.sheetnames:
@@ -85,8 +111,10 @@ def add_sheet(wb: Workbook, sheet_name: str) -> bool:
 
     A new workbook starts with an empty default "Sheet1". While that is still its
     only sheet and untouched, it is renamed to ``sheet_name`` instead of staying
-    in front of the new sheet as an empty first tab.
+    in front of the new sheet as an empty first tab. Raises WorkbookError for a
+    name Excel does not accept.
     """
+    validate_sheet_name(sheet_name)
     if _is_untouched_default_sheet(wb):
         wb[DEFAULT_SHEET_NAME].title = sheet_name
         return True
