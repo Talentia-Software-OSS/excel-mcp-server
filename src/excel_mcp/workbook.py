@@ -40,6 +40,18 @@ def validate_sheet_name(sheet_name: str) -> None:
             f'Sheet name "{sheet_name}" must not start or end with an apostrophe'
         )
 
+def _set_title(sheet: Worksheet, title: str) -> None:
+    """Give ``sheet`` exactly the title ``title``.
+
+    openpyxl compares a new title with every sheet name in the workbook, the
+    sheet's own current title included, without regard to letter case, and adds a
+    number on a match: renaming "Sheet1" to "sheet1" would give "sheet11". A change
+    of letter case alone therefore goes through a temporary title first.
+    """
+    if sheet.title != title and sheet.title.lower() == title.lower():
+        sheet.title = f"{title}_"
+    sheet.title = title
+
 def create_workbook(filepath: str, sheet_name: str = DEFAULT_SHEET_NAME) -> dict[str, Any]:
     """Create a new Excel workbook with optional custom sheet name"""
     try:
@@ -48,7 +60,7 @@ def create_workbook(filepath: str, sheet_name: str = DEFAULT_SHEET_NAME) -> dict
         # Rename default sheet
         if "Sheet" in wb.sheetnames:
             sheet = wb["Sheet"]
-            sheet.title = sheet_name
+            _set_title(sheet, sheet_name)
         else:
             wb.create_sheet(sheet_name)
 
@@ -116,7 +128,7 @@ def add_sheet(wb: Workbook, sheet_name: str) -> bool:
     """
     validate_sheet_name(sheet_name)
     if _is_untouched_default_sheet(wb):
-        wb[DEFAULT_SHEET_NAME].title = sheet_name
+        _set_title(wb[DEFAULT_SHEET_NAME], sheet_name)
         return True
     wb.create_sheet(sheet_name)
     return False

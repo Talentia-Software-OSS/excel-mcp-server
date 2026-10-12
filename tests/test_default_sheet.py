@@ -142,6 +142,20 @@ class TestDefaultSheet(unittest.TestCase):
 
         self.assertEqual(self._sheetnames(), ["Data", "Revenue"])
 
+    def test_a_case_variant_of_sheet1_takes_over_the_default_sheet(self):
+        for name in ["sheet1", "SHEET1"]:
+            with self.subTest(name):
+                create_workbook(self.path)
+                result = create_sheet(self.path, name)
+
+                self.assertEqual(self._sheetnames(), [name])
+                self.assertIn("replaces the empty default sheet Sheet1", result["message"])
+
+                create_workbook(self.path)
+                write_data(self.path, name, [["Region", "Revenue"]])
+
+                self.assertEqual(self._sheetnames(), [name])
+
     def test_a_sheet_name_excel_refuses_leaves_the_default_sheet_alone(self):
         for name in ["R" * 32, "'Revenue", "Revenue'", "Q1/Q2"]:
             with self.subTest(name):
@@ -186,6 +200,14 @@ class TestCreateWorkbookTool(unittest.TestCase):
         server.create_workbook(self.path)
 
         self.assertEqual(load_workbook(self.path).sheetnames, ["Sheet1"])
+
+    def test_a_case_variant_of_the_openpyxl_default_title_is_kept(self):
+        for name in ["sheet", "SHEET"]:
+            with self.subTest(name):
+                server.create_workbook(self.path, sheet_name=name)
+                server.write_data_to_excel(self.path, name, [["Region"]])
+
+                self.assertEqual(load_workbook(self.path).sheetnames, [name])
 
     def test_a_sheet_name_excel_refuses_is_an_error_and_writes_no_file(self):
         for name in ["R" * 32, "'Revenue", ""]:
