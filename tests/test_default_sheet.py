@@ -10,8 +10,10 @@ if _SRC not in sys.path:
 
 from openpyxl import Workbook, load_workbook  # noqa: E402
 from openpyxl.chart import BarChart  # noqa: E402
+from openpyxl.comments import Comment  # noqa: E402
 from openpyxl.formatting.rule import CellIsRule  # noqa: E402
-from openpyxl.styles import PatternFill  # noqa: E402
+from openpyxl.styles import Font, PatternFill  # noqa: E402
+from openpyxl.workbook.defined_name import DefinedName  # noqa: E402
 from openpyxl.worksheet.datavalidation import DataValidation  # noqa: E402
 from openpyxl.worksheet.table import Table  # noqa: E402
 
@@ -72,6 +74,20 @@ class TestDefaultSheet(unittest.TestCase):
                     fill=PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid"),
                 ),
             ),
+            "style only": lambda ws: setattr(ws["A1"], "font", Font(bold=True)),
+            "comment": lambda ws: setattr(ws["A1"], "comment", Comment("Check this", "Analyst")),
+            "defined name": lambda ws: ws.parent.defined_names.add(
+                DefinedName("InputCell", attr_text="Sheet1!$A$1"),
+            ),
+            "sheet-scoped name": lambda ws: ws.defined_names.add(
+                DefinedName("TaxRate", attr_text="0.2"),
+            ),
+            "print area": lambda ws: setattr(ws, "print_area", "A1:C10"),
+            "print titles": lambda ws: setattr(ws, "print_title_rows", "1:1"),
+            "frozen panes": lambda ws: setattr(ws, "freeze_panes", "A2"),
+            "auto filter": lambda ws: setattr(ws.auto_filter, "ref", "A1:C1"),
+            "sheet protection": lambda ws: ws.protection.enable(),
+            "tab colour": lambda ws: setattr(ws.sheet_properties, "tabColor", "FF0000"),
         }
         for kind, change in changes.items():
             with self.subTest(kind):

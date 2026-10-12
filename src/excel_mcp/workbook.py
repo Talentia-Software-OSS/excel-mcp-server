@@ -43,20 +43,38 @@ def get_or_create_workbook(filepath: str) -> Workbook:
         return create_workbook(filepath)["workbook"]
 
 def _is_untouched_default_sheet(wb: Workbook) -> bool:
-    """The workbook's only sheet is the default "Sheet1" with nothing put on it:
-    no value, merged range, chart, image, table, data validation or conditional format."""
+    """The workbook's only sheet is the default "Sheet1" with nothing put on it.
+
+    Renaming the sheet would carry whatever it holds over to the new sheet, so any
+    cell (a value, a style, a comment or a hyperlink), merged range, chart, image,
+    table, data validation, conditional format, print area or print titles, frozen
+    panes, auto filter, sheet protection or tab colour counts as work. So does a
+    defined name scoped to the sheet or referring to it, because openpyxl does not
+    update defined names when a sheet is renamed.
+    """
     if wb.sheetnames != [DEFAULT_SHEET_NAME]:
         return False
     sheet = wb[DEFAULT_SHEET_NAME]
     return (
         isinstance(sheet, Worksheet)
-        and all(value is None for row in sheet.iter_rows(values_only=True) for value in row)
+        and not sheet._cells
         and not sheet.merged_cells
         and not sheet._charts
         and not sheet._images
         and not sheet.tables
         and not sheet.data_validations.dataValidation
         and not sheet.conditional_formatting
+        and not sheet.print_area
+        and not sheet.print_titles
+        and not sheet.freeze_panes
+        and not sheet.auto_filter.ref
+        and not sheet.protection.sheet
+        and not sheet.sheet_properties.tabColor
+        and not sheet.defined_names
+        and not any(
+            DEFAULT_SHEET_NAME.lower() in (name.value or "").lower()
+            for name in wb.defined_names.values()
+        )
     )
 
 def add_sheet(wb: Workbook, sheet_name: str) -> bool:
