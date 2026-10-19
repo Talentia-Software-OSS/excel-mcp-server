@@ -4,19 +4,63 @@ from typing import Any
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.worksheet import Worksheet
 
 from .exceptions import WorkbookError
 
 logger = logging.getLogger(__name__)
 
-def create_workbook(filepath: str, sheet_name: str = "Sheet1") -> dict[str, Any]:
+DEFAULT_SHEET_NAME = "Sheet1"
+# Appended to a tool's success message when add_sheet took over the default sheet,
+# so the model does not look for "Sheet1" afterwards.
+REPLACED_DEFAULT_SHEET_NOTE = f" (it replaces the empty default sheet {DEFAULT_SHEET_NAME})"
+
+MAX_SHEET_NAME_LENGTH = 31
+INVALID_SHEET_NAME_CHARACTERS = "[]:*?/\\"
+
+def validate_sheet_name(sheet_name: str) -> None:
+    """Raise WorkbookError unless Excel accepts ``sheet_name`` as a worksheet name.
+
+    openpyxl only warns about a name over 31 characters and accepts a leading or
+    trailing apostrophe, which leaves a file Excel may refuse or repair.
+    """
+    if not sheet_name:
+        raise WorkbookError("Sheet name must not be empty")
+    if len(sheet_name) > MAX_SHEET_NAME_LENGTH:
+        raise WorkbookError(
+            f'Sheet name "{sheet_name}" is longer than {MAX_SHEET_NAME_LENGTH} characters'
+        )
+    if any(character in INVALID_SHEET_NAME_CHARACTERS for character in sheet_name):
+        raise WorkbookError(
+            f'Sheet name "{sheet_name}" must not contain any of '
+            + " ".join(INVALID_SHEET_NAME_CHARACTERS)
+        )
+    if sheet_name.startswith("'") or sheet_name.endswith("'"):
+        raise WorkbookError(
+            f'Sheet name "{sheet_name}" must not start or end with an apostrophe'
+        )
+
+def _set_title(sheet: Worksheet, title: str) -> None:
+    """Give ``sheet`` exactly the title ``title``.
+
+    openpyxl compares a new title with every sheet name in the workbook, the
+    sheet's own current title included, without regard to letter case, and adds a
+    number on a match: renaming "Sheet1" to "sheet1" would give "sheet11". A change
+    of letter case alone therefore goes through a temporary title first.
+    """
+    if sheet.title != title and sheet.title.lower() == title.lower():
+        sheet.title = f"{title}_"
+    sheet.title = title
+
+def create_workbook(filepath: str, sheet_name: str = DEFAULT_SHEET_NAME) -> dict[str, Any]:
     """Create a new Excel workbook with optional custom sheet name"""
     try:
+        validate_sheet_name(sheet_name)
         wb = Workbook()
         # Rename default sheet
         if "Sheet" in wb.sheetnames:
             sheet = wb["Sheet"]
-            sheet.title = sheet_name
+            _set_title(sheet, sheet_name)
         else:
             wb.create_sheet(sheet_name)
 
@@ -39,6 +83,56 @@ def get_or_create_workbook(filepath: str) -> Workbook:
     except FileNotFoundError:
         return create_workbook(filepath)["workbook"]
 
+def _is_untouched_default_sheet(wb: Workbook) -> bool:
+    """The workbook's only sheet is the default "Sheet1" with nothing put on it.
+
+    Renaming the sheet would carry whatever it holds over to the new sheet, so any
+    cell (a value, a style, a comment or a hyperlink), merged range, chart, image,
+    table, data validation, conditional format, print area or print titles, frozen
+    panes, auto filter, sheet protection or tab colour counts as work. So does a
+    defined name scoped to the sheet or referring to it, because openpyxl does not
+    update defined names when a sheet is renamed.
+    """
+    if wb.sheetnames != [DEFAULT_SHEET_NAME]:
+        return False
+    sheet = wb[DEFAULT_SHEET_NAME]
+    return (
+        isinstance(sheet, Worksheet)
+        and not sheet._cells
+        and not sheet.merged_cells
+        and not sheet._charts
+        and not sheet._images
+        and not sheet.tables
+        and not sheet.data_validations.dataValidation
+        and not sheet.conditional_formatting
+        and not sheet.print_area
+        and not sheet.print_titles
+        and not sheet.freeze_panes
+        and not sheet.auto_filter.ref
+        and not sheet.protection.sheet
+        and not sheet.sheet_properties.tabColor
+        and not sheet.defined_names
+        and not any(
+            DEFAULT_SHEET_NAME.lower() in (name.value or "").lower()
+            for name in wb.defined_names.values()
+        )
+    )
+
+def add_sheet(wb: Workbook, sheet_name: str) -> bool:
+    """Add a worksheet named ``sheet_name``; True when it took over the default sheet.
+
+    A new workbook starts with an empty default "Sheet1". While that is still its
+    only sheet and untouched, it is renamed to ``sheet_name`` instead of staying
+    in front of the new sheet as an empty first tab. Raises WorkbookError for a
+    name Excel does not accept.
+    """
+    validate_sheet_name(sheet_name)
+    if _is_untouched_default_sheet(wb):
+        _set_title(wb[DEFAULT_SHEET_NAME], sheet_name)
+        return True
+    wb.create_sheet(sheet_name)
+    return False
+
 def create_sheet(filepath: str, sheet_name: str) -> dict:
     """Create a new worksheet in the workbook if it doesn't exist."""
     try:
@@ -48,11 +142,14 @@ def create_sheet(filepath: str, sheet_name: str) -> dict:
         if sheet_name in wb.sheetnames:
             raise WorkbookError(f"Sheet {sheet_name} already exists")
 
-        # Create new sheet
-        wb.create_sheet(sheet_name)
+        # Create new sheet, or take over the untouched default one
+        replaced_default = add_sheet(wb, sheet_name)
         wb.save(filepath)
         wb.close()
-        return {"message": f"Sheet {sheet_name} created successfully"}
+        message = f"Sheet {sheet_name} created successfully"
+        if replaced_default:
+            message += REPLACED_DEFAULT_SHEET_NOTE
+        return {"message": message}
     except WorkbookError as e:
         logger.error(str(e))
         raise
